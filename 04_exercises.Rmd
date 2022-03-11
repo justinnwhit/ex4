@@ -112,7 +112,8 @@ ggmap(world) + # creates the map "background"
              alpha = .3, 
              size = .1) +
   
-  theme_map()
+  theme_map()+
+  labs(title = "Starbucks locations")
 ```
 
 
@@ -133,7 +134,8 @@ ggmap(world) + # creates the map "background"
              alpha = .6, 
              size = 1) +
   
-  theme_map()
+  theme_map()+
+  labs(title = "Starbucks locations by ownership")
 ```
   
 
@@ -146,7 +148,7 @@ ggmap(world) + # creates the map "background"
 ```{r}
 world <- get_stamenmap(
     bbox = c(left = -93.4, bottom = 44.7360, right = -92.6786, top = 45.1), 
-    maptype = "terrain",
+    maptype = "toner",
     zoom = 10)
 
 # Plot the points on the map
@@ -156,7 +158,8 @@ ggmap(world) + # creates the map "background"
              alpha = .6, 
              size = 1) +
   
-  theme_map()
+  theme_map()+
+  labs(title = "Starbucks locations by ownership")
 ```
   
 
@@ -176,7 +179,8 @@ ggmap(world) + # creates the map "background"
              size = 1) +
              annotate("text",x=-93.17,y=44.93,label="Mac")
   
-  theme_map()
+  theme_map()+
+    labs(title = "Starbucks locations by ownership")
   
 ```
 
@@ -231,13 +235,46 @@ starbucks_with_2018_pop_est %>%
   #This assures the map looks decently nice:
   expand_limits(x = states_map$long, y = states_map$lat) +
   scale_fill_viridis_c(option="magma")+
-  theme_map()
+  theme_map()+
+  labs(title = "Startbucks per 100,000 people")
+  
+  
+  
 ```
   
 
 ### A few of your favorite things (`leaflet`)
 
   8. In this exercise, you are going to create a single map of some of your favorite places! The end result will be one map that satisfies the criteria below. 
+```{r}
+
+favorite_stp <- tibble(
+  place = c("Home", "Macalester College", "Tenant", 
+            "Young Joni", "Partners House", "Ny Gyro",
+            "Friends House", "Cedar Lake", "TJ's"),
+  long = c(-93.16660, -93.1712321, -93.29091, 
+           -93.26635, -93.28719, -93.28381, 
+           -93.16653, -93.32101, -93.14530),
+  lat = c(44.94762, 44.9378965, 44.92503,
+          45.00115, 44.94567, 44.94864, 
+          44.93214, 44.96044, 44.93270)
+  )
+
+leaflet(data = favorite_stp) %>% 
+  addProviderTiles(providers$Stamen.TonerLite) %>% 
+  addCircles(lng = ~long, 
+             lat = ~lat, 
+             label = ~place, 
+             weight = 10, 
+             opacity = 1, 
+             color = col2hex("darkred")) %>% 
+  addPolylines(lng = ~long, 
+               lat = ~lat, 
+               color = col2hex("blue"))
+
+
+
+```
   
   
 
@@ -294,7 +331,8 @@ world <- get_stamenmap(
   labs(title = "Depatures") +
   theme_map() +
   scale_colour_viridis_c()+
-  theme(legend.background = element_blank())
+  theme(legend.background = element_blank())+
+    labs(title="Departure count from bike share stations across Washington DC")
 
 
 ```
@@ -327,7 +365,8 @@ world <- get_stamenmap(
   labs(title = "Depatures") +
   theme_map() +
   scale_colour_viridis_c()+
-  theme(legend.background = element_blank())
+  theme(legend.background = element_blank())+
+    labs(title="Departure count by casual users from bike share stations across Washington DC")
 
 
 
@@ -354,7 +393,8 @@ covid19 %>%
                fill = cases)) +
   expand_limits(x = states_map$long, y = states_map$lat) +
   scale_fill_viridis_c(option="magma")+
-  theme_map()
+  theme_map()+
+  labs(title="Cummulative covid case count")
 
 ```
   
@@ -386,7 +426,8 @@ cases_with_2018_pop_est %>%
   #This assures the map looks decently nice:
   expand_limits(x = states_map$long, y = states_map$lat) +
   scale_fill_viridis_c(option="magma")+
-  theme_map()
+  theme_map()+
+  labs(title="Cummulative case by 100,000 people")
 
 
 
@@ -410,16 +451,12 @@ These exercises use the datasets `MplsStops` and `MplsDemo` from the `carData` l
   
 ```{r}
 
-
 mpls_suspicious <-
   MplsStops %>% 
-  select(neighborhood,personSearch,vehicleSearch,lat,long) %>% 
   group_by(neighborhood) %>%
-  filter(personSearch =="YES"|`vehicleSearch`=="YES") %>% 
-  count() %>% 
-  mutate(total_per=sum(n)) %>% 
-  arrange(desc(total_per))
-
+summarise(n=n(), 
+  prop_sus_stops = mean(problem=="suspicious")) %>% 
+    arrange(desc(n))
 mpls_suspicious
 ```
   
@@ -429,21 +466,24 @@ mpls_suspicious
   
 ```{r}
 
-pal <- colorFactor("viridis",
-  domain=~problens
-)
+pal <- colorFactor(palette=c("blue","green"),
+  domain=c("suspicious","traffic"))
 
-leaflet(MplsStops) %>% 
-  addTiles() %>% 
-  addMarkers(data = MplsStops,
+leaflet(data = MplsStops) %>%
+  addProviderTiles(providers$Stamen.TonerLite) %>% 
+  addCircleMarkers(
              lng = ~long, 
              lat =  ~lat,
-            layerId = ~problem)
+             stroke = FALSE,
+             fillOpacity = 0.2,
+             weight = 0.4,
+             radius = 1,
+            fillColor = ~pal(problem))  %>% 
 
   
   # Add a legend
   addLegend(pal = pal, 
-            values = ~sid_per_1000birth_79, 
+            values = ~problem, 
             opacity = 0.5, 
             title = NULL,
             position = "bottomright") 
@@ -454,19 +494,41 @@ leaflet(MplsStops) %>%
 
 ```{r}
 mpls_nbhd <- st_read("Minneapolis_Neighborhoods/Minneapolis_Neighborhoods.shp", quiet = TRUE)
+
+mpls_all <- mpls_nbhd %>% 
+  full_join(MplsDemo,
+            by = c("BDNAME"="neighborhood")) %>% 
+  full_join(mpls_suspicious,
+            by = c("BDNAME"="neighborhood"))
+mpls_all
+
 ```
 
   17. Use `leaflet` to create a map from the `mpls_all` data  that colors the neighborhoods by `prop_suspicious`. Display the neighborhood name as you scroll over it. Describe what you observe in the map.
   
+  Suspicious stops are much lower in neighborhoods that I think of as more wealthy. I would imagine if we plotted mean income as another map they would look similar due to over polcicing of low income areas
+  
 ```{r}
 
+pal <- colorNumeric("viridis",
+domain = mpls_all$prop_sus_stops,reverse= TRUE)
 
-leaflet(mpls_nbhd) %>% 
-  addTiles() %>% 
-  addMarkers(data = mpls_nbhd,
-             lng = ~long, 
-             lat =  ~lat,
-            layerId = ~prop_suspicious)
+leaflet(data = mpls_all) %>%
+  addProviderTiles(providers$Stamen.TonerLite) %>% 
+  addPolygons(
+            fillColor = ~pal(prop_sus_stops),
+            fillOpacity = 0.7,
+            highlight = highlightOptions(weight = 5, 
+                                 color = "black",
+                                 fillOpacity = 0.9,
+                                 bringToFront = FALSE),
+            popup =~BDNAME) %>% 
+
+ addLegend(pal = pal, 
+            values = ~prop_sus_stops, 
+            opacity = 0.5, 
+            title = NULL,
+            position = "bottomright") 
 
 
 ```
@@ -474,11 +536,45 @@ leaflet(mpls_nbhd) %>%
   
   18. Use `leaflet` to create a map of your own choosing. Come up with a question you want to try to answer and use the map to help answer that question. Describe what your map shows. 
   
+  This map shows av household income by neighborhoood. Comparing this to the previous map we can see that more wealthy area
+  
+```{r}
+mpls_all<-mpls_all %>% 
+  group_by(BDNAME) %>% 
+  mutate(av_inc=mean(hhIncome))
+
+
+pal <- colorNumeric("viridis",
+domain = mpls_all$av_inc,reverse= TRUE)
+
+leaflet(data = mpls_all) %>%
+  addProviderTiles(providers$Stamen.TonerLite) %>% 
+  addPolygons(
+            fillColor = ~pal(av_inc),
+            fillOpacity = 0.7,
+            highlight = highlightOptions(weight = 5, 
+                                 color = "black",
+                                 fillOpacity = 0.9,
+                                 bringToFront = FALSE),
+            popup =~BDNAME) %>% 
+
+ addLegend(pal = pal, 
+            values = ~av_inc, 
+            opacity = 0.5, 
+            title = NULL,
+            position = "bottomright") 
+
+```
+  
   
 
 ## GitHub link
 
   19. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 04_exercises.Rmd, provide a link to the 04_exercises.md file, which is the one that will be most readable on GitHub.
+  
+  [link](https://github.com/justinnwhit/ex4/blob/main/04_exercises.Rmd)
+  
+  
 
 
 **DID YOU REMEMBER TO UNCOMMENT THE OPTIONS AT THE TOP?**
